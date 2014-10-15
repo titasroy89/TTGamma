@@ -326,6 +326,9 @@ void ttgamma3::SlaveBegin(TTree * tree)
   hphotons["RandIso"] = new TH1F("photon_RandIso"+hname,"Random Cone Isolation",100,-0.5,20);
   hphotons["temp_sigmaietaieta"] = new TH1F("photon_temp_sigmaietaieta"+hname,"#sigma_{i#etai#eta}",50,0,0.03);
   hphotons["temp_SCFRChIso"] = new TH1F("photon_temp_SCFRChIso"+hname,"SCFR Charged Hadron Isolation",100,-0.5,20);
+  hphotons["mc_realphotons"]=  new TH1F("photon_real_MCmomID","MC photon mother ID",51,-25.5,25.5);
+
+  //hphotons["SCFRChIso_vs_sigmaietaieta"] = new TH2F("photon_2D"+hname,"SCFR vs sigmaietaieta",50,0,0.03,100,-0.5,20);
   //hphotons["temp2D_sigmaVsSCFRCh"] = new TH2F("photon_temp_sigmaVsSCFRCh"+hname,"#sigma_{i#etai#eta} vs ",50,0,0.03,100,-0.5,20); 
   // mass
   hM["M3"] = new TH1F("M3"+hname,"M3 [GeV/c^{2}]", 100, 0, 1000); 
@@ -343,6 +346,8 @@ void ttgamma3::SlaveBegin(TTree * tree)
   allhistos.insert( hM.begin(), hM.end() );
   allhistos.insert( hMC.begin(), hMC.end() );
 
+
+
   for ( map<string,TH1* >::const_iterator imap = allhistos.begin(); imap!=allhistos.end(); ++imap )
     {
       TH1 *temp = imap->second;
@@ -352,6 +357,30 @@ void ttgamma3::SlaveBegin(TTree * tree)
   
    h1test = new TH1F("h1test","Electron p_{T}",100,10.,400);
    h1test->SetDirectory(fFile);   
+   
+   h3test = new TH1F("DeltaR", "DeltaR", 40,0,5);
+   h3test->SetDirectory(fFile);
+
+   h6test = new TH1F("PT MC", "PT MC", 100,0,400);
+   h6test->SetDirectory(fFile);
+
+   h7test= new TH1F("PT RECO", "PT RECO", 100,0,400);
+   h7test->SetDirectory(fFile);
+
+   h4test = new TH1F( "N_MCPhotons", "Number of Photons", 5,0,20);
+   h4test->SetDirectory(fFile);
+
+   h5test = new TH1F("N photons", "N photons",5,0,20);
+   h5test->SetDirectory(fFile);
+   
+   h8test = new TH1F("Mother Particle ID","MC_PH_mom_ID", 5, -24,24);
+   h8test->SetDirectory(fFile);
+
+   //defining a 2D histogram
+
+   h2test = new TH2F("h2D","SCFR vs Charged Hadron Isolation",50,0,0.03,100,-0.5,20);
+   h2test->SetDirectory(fFile);
+
 
    // cut flow
    if (fChannel==1)
@@ -457,7 +486,6 @@ Bool_t ttgamma3::Process(Long64_t entry)
       for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
         {
           hMC["PID"]->Fill( fReader->mcPID->at(imc) );
-        
           ///////////////////////////////////
           // check photon mom in ttg sample
           ///////////////////////////////////
@@ -471,22 +499,74 @@ Bool_t ttgamma3::Process(Long64_t entry)
             }
         }
     }
+  //////////////////////////////////////////////////////////
+  /// Checking ttgWhizard sample for fake and real photons
+  //////////////////////////////////////////////////////////
+   TLorentzVector tempp4_b;
+
+  if ( fSample == "ttgWhizard" )
+   {
+      cout << "Checking ttgWhizard" <<endl;
+
+      int n_pho = 0;
+
+      vector < int > momPhotonIDVec;
+      vector <TLorentzVector> p4MCphotons;
+      TLorentzVector tmpp4;
+      TLorentzVector tempp4_a;
+     // TLorentzVector tempp4_b;
+      TLorentzVector temp4;
+
+      for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
+        {
+          // photons
+          if ( fReader->mcPID->at(imc) == 22 && fReader->mcStatus->at(imc) == 1)
+            {
+              tmpp4.SetPtEtaPhiE( fReader->mcPt->at(imc), fReader->mcEta->at(imc), fReader->mcPhi->at(imc), fReader->mcE->at(imc) );
+              // if (fabs(fReader->mcMomPID->at(imc))==5 || fabs(fReader->mcMomPID->at(imc))==6 || fabs(fReader->mcMomPID->at(imc))==24 )
+              if (fabs(fReader->mcParentage->at(imc))==5 || fabs(fReader->mcParentage->at(imc))==6 || fabs(fReader->mcParentage->at(imc))==24 )
+              //if (fReader->mcParentage->at(imc)==2 || (fReader->mcParentage->at(imc)==10 && fabs(fReader->mcMomPID->at(imc))==24) )
+
+                 {
+                   p4MCphotons.push_back(tmpp4);
+                   h8test->Fill(fReader->mcMomPID->at(imc));
+                 }
+            }
+        }
+     
+      h4test->Fill(p4MCphotons.size());
+      float max_pt;
+      max_pt = -1.0;
+      for (int ij = 0 ; ij < p4MCphotons.size() ; ++ij )
+           {
+             TLorentzVector tempp4_a = p4MCphotons[ij];
+             if ( tempp4_a.Pt()> max_pt )
+                {
+                  max_pt = tempp4_a.Pt();
+                  tempp4_b.SetPtEtaPhiE( tempp4_a.Pt(), tempp4_a.Eta(), tempp4_a.Phi(), tempp4_a.E() );
+                }
+            }
+      h6test->Fill(tempp4_b.Pt());
+}
 
   ////////////////////////////////////////////////
   // Remove overlapping photon events in ttjets MG
   ////////////////////////////////////////////////
   if ( fSample == "ttjets_1l" || fSample == "ttjets_2l" || fSample == "ttjets_0l" || fSample == "ttjets_0l_g" || fSample == "ttjets_1l_g" || fSample == "ttjets_2l_g" )
     {
-      if (fVerbose) cout << "Checking if event has overlapping photons" << endl;
+       cout << "Checking if event has overlapping photons" << endl;
  
       int mcNphotons = 0;
       int mcNphotons_overlap = 0;
       
       TLorentzVector p4bQuark;
       TLorentzVector p4bbarQuark;
-      vector < TLorentzVector > p4MCPhotonsVec;
+      vector <TLorentzVector>  p4MCPhotonsVec;
       vector < int > momPhotonIDVec;
       TLorentzVector tmpp4;
+      TLorentzVector tempp4_a;
+      TLorentzVector tempp4_b;
+      TLorentzVector temp4;
 
       for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
         {
@@ -513,6 +593,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
             }
         }
       
+ 
       int ipho = 0;
       for ( vector<TLorentzVector>::const_iterator ivec= p4MCPhotonsVec.begin(); ivec != p4MCPhotonsVec.end(); ++ivec )
         {
@@ -523,6 +604,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
               mcNphotons_overlap++;
               hphotons["mc_momIDoverlap"]->Fill( momPhotonIDVec[ipho] );
             }
+           
           //else 
           //  {
           //    hphotons["mc_momIDpass"]->Fill( momPhotonIDVec[ipho] );
@@ -1114,6 +1196,12 @@ Bool_t ttgamma3::Process(Long64_t entry)
                   {
                     hphotons["temp_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
                     hphotons["temp_SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
+		    h2test->Fill(ietaieta,SCFRChIso);
+	            h2test->GetXaxis()->SetTitle("Sigmaietaieta");
+		    h2test->GetYaxis()->SetTitle("SCFRChIso");
+                    h2test->SetLineColor(870);
+		    h2test->SetOption("box");
+
                     //hphotons["temp2D_sigmaVsSCFRCh"]->Fill( (double)ietaieta, (double)SCFRChIso, EvtWeight);
                   }
 
@@ -1143,6 +1231,14 @@ Bool_t ttgamma3::Process(Long64_t entry)
                                 hphotons["chHadIso"]->Fill( chHadIso, EvtWeight );
                                 hphotons["SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
                                 hphotons["RandIso"]->Fill( rand_chHadIso, EvtWeight );
+                                h7test->Fill(p4photon.Pt());
+                                h3test->Fill(tempp4_b.DeltaR(p4photon));
+                                if ( tempp4_b.DeltaR(p4photon));
+                                   {
+                                      // h3test->Fill( tempp4_b.Pt());
+                                       h5test->Fill( sizeof(tempp4_b));
+                                   }
+ 
                               }
                             Ngood_gamma++;
                           }
@@ -1236,6 +1332,21 @@ void ttgamma3::SlaveTerminate()
       fFile->cd();
       h1test->Write();
       h1test->SetDirectory(0);
+      h2test->Write();
+      h2test->SetDirectory(0);
+      h3test->Write();
+      h3test->SetDirectory(0);
+      h4test->Write();
+      h4test->SetDirectory(0);
+      h5test->Write();
+      h5test->SetDirectory(0);
+      h6test->Write();
+      h6test->SetDirectory(0);
+      h7test->Write();
+      h7test->SetDirectory(0);
+      h8test->Write();
+      h8test->SetDirectory(0);
+
       hcutflow->Write();
       hcutflow->SetDirectory(0);
 
