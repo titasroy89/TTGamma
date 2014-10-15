@@ -533,7 +533,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
                  }
             }
         }
-     
+      //checking 
       h4test->Fill(p4MCphotons.size());
       float max_pt;
       max_pt = -1.0;
