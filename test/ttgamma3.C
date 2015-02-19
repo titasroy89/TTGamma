@@ -1142,6 +1142,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
   ///////////////////////////////////
   float Ngamma[8] = {0.};
   int Ngood_gamma = 0;
+  int Ngood_deltaR_gamma = 0;
   
   // https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedPhotonID2012
   // photon ID is not going to be changed every time this code runs
@@ -1274,14 +1275,15 @@ Bool_t ttgamma3::Process(Long64_t entry)
                            // removing photons close to jets with Pt > 20 
                            for (int ij= 0; ij < fReader->nJet; ++ij)
                              {
-                               Ngood_deltaR_gamma==0;
-                               TLorentzVector tmpp4;
-                               tmpp4.SetPtEtaPhiE( fReader->jetPt->at(ij), fReader->jetEta->at(ij), fReader->jetPhi->at(ij), fReader->jetEn->at(ij) );
-                               if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7)
-
+                              if( Ngood_deltaR_gamma==0);
                                {
+                                TLorentzVector tmpp4;
+                                tmpp4.SetPtEtaPhiE( fReader->jetPt->at(ij), fReader->jetEta->at(ij), fReader->jetPhi->at(ij), fReader->jetEn->at(ij) );
+                                if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7)
+                                {
                                    Ngood_deltaR_gamma++;
-                               }
+                                }
+                               } 
                              }
                         }
 
