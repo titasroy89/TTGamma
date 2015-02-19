@@ -1208,9 +1208,12 @@ Bool_t ttgamma3::Process(Long64_t entry)
                           Ngamma[3]+= EvtWeight;
                           float ietaieta = fReader->phoSigmaIEtaIEta->at(ip);
                           hphotons["cut3_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
-		          if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
-                          // neutral HAdron ISo
-	                  if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
+                          //sigma ieta ieta
+                          if ( ietaieta < photonID_SigmaIEtaIEta[region][photon_ID] )
+                          {
+		            if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
+                            // neutral HAdron ISo
+	                    if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
                   	    {
                     	      hphotons["temp_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
                     	      hphotons["temp_SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
@@ -1245,7 +1248,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
                                 }
                             }//pfIso
                          }//ntHad
- 
+                          }//sigmaietaieta
                 // sigmaieta ieta
                 if ( ietaieta < photonID_SigmaIEtaIEta[region][photon_ID] )
                   {
