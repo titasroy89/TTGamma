@@ -1246,8 +1246,9 @@ Bool_t ttgamma3::Process(Long64_t entry)
                                        h9test->SetLineColor(870);
                                        h9test->SetOption("box");
                                      }
-                                    Ngood_gamma++;
+                                    //Ngood_gamma++;
                                 }
+                             Ngood_gamma++;   
                             }//pfIso
                          }//ntHad
                            }//sigmaietaieta
@@ -1279,10 +1280,11 @@ Bool_t ttgamma3::Process(Long64_t entry)
                                {
                                 TLorentzVector tmpp4;
                                 tmpp4.SetPtEtaPhiE( fReader->jetPt->at(ij), fReader->jetEta->at(ij), fReader->jetPhi->at(ij), fReader->jetEn->at(ij) );
-                                if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7)
+                                if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7 && fReader->jetPFLooseId->at(ij) == true )
                                 {
-                                   Ngood_deltaR_gamma++;
+                                   //Ngood_deltaR_gamma++;
                                 }
+                                Ngood_deltaR_gamma++;
                                } 
                              }
                         }
