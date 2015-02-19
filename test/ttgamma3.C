@@ -131,14 +131,15 @@ void ttgamma3::ParseInput()
     {
       fPUreweighting = true;
       fdoTOPPT = true;
-      fdoBTAG = true;
+      fdoBTAGSF = true;
+      fdoMuSF = true;
     }
   else 
     {
       fPUreweighting = false;
       fdoMuSF = false;
       fdoTOPPT = false;
-      fdoBTAG = false;
+      fdoBTAGSF = false;
     }
 
   if (fMyOpt.Contains("sync"))
@@ -163,7 +164,7 @@ void ttgamma3::ParseInput()
   if ( fPUreweighting ) Info("Begin","Apply PU reweighting.");
   if ( fdoMuSF ) Info("Begin","Apply muon scale factors.");
   if ( fdoTOPPT ) Info("Begin","Apply top pt reweighting.");
-  if ( fdoBTAG ) Info("Begin","Apply b-tagging scale factors.");
+  if ( fdoBTAGSF ) Info("Begin","Apply b-tagging scale factors.");
 }
 
 void ttgamma3::WriteHistograms(const char* name, map<string, TH1*> hcontainer)
@@ -211,12 +212,12 @@ void ttgamma3::SlaveBegin(TTree * tree)
 
   // get PU weights
   if (fPUreweighting) {
-    TFile *PU_data_file     = new TFile( "HelperFiles/MyDataPileupHistogram.root" );
+    TFile *PU_data_file     = TFile::Open( "HelperFiles/MyDataPileupHistogram.root" );
     if ( PU_data_file->IsZombie() ) {
       Info("SlaveBegin","Error opening file: %s", PU_data_file->GetName() );
     }
     hPU_weights = new TH1F( *(static_cast<TH1F*>(PU_data_file->Get( "pileup" )->Clone() )) );
-    TFile *PU_MC_file = new TFile( "HelperFiles/MyMCPileupHistogram.root");
+    TFile *PU_MC_file = TFile::Open( "HelperFiles/MyMCPileupHistogram.root");
     if ( PU_MC_file->IsZombie() ) {
       Info("SlaveBegin","Error opening file: %s", PU_MC_file->GetName() );
     }
@@ -242,7 +243,7 @@ void ttgamma3::SlaveBegin(TTree * tree)
   }
   if ( fSample != "" ) tmpfilename = fOutdir+outprefixfile+fSample+".root";
   else tmpfilename = fOutdir + outprefixfile+"data.root";
-  fFile = new TFile( tmpfilename, "RECREATE");
+  fFile = TFile::Open( tmpfilename, "RECREATE");
   //Info("SlaveBegin", "Output filename: %s", tmpfilename );
 
   TString hname = "_"+fSample;
@@ -325,9 +326,13 @@ void ttgamma3::SlaveBegin(TTree * tree)
   hphotons["RandIso"] = new TH1F("photon_RandIso"+hname,"Random Cone Isolation",100,-0.5,20);
   hphotons["temp_sigmaietaieta"] = new TH1F("photon_temp_sigmaietaieta"+hname,"#sigma_{i#etai#eta}",50,0,0.03);
   hphotons["temp_SCFRChIso"] = new TH1F("photon_temp_SCFRChIso"+hname,"SCFR Charged Hadron Isolation",100,-0.5,20);
+  hphotons["mc_realphotons"]=  new TH1F("photon_real_MCmomID","MC photon mother ID",51,-25.5,25.5);
+
+  //hphotons["SCFRChIso_vs_sigmaietaieta"] = new TH2F("photon_2D"+hname,"SCFR vs sigmaietaieta",50,0,0.03,100,-0.5,20);
   //hphotons["temp2D_sigmaVsSCFRCh"] = new TH2F("photon_temp_sigmaVsSCFRCh"+hname,"#sigma_{i#etai#eta} vs ",50,0,0.03,100,-0.5,20); 
   // mass
   hM["M3"] = new TH1F("M3"+hname,"M3 [GeV/c^{2}]", 100, 0, 1000); 
+  hM["M3_pre"] = new TH1F("M3_pre"+hname,"M3[GeV/c^{2}]", 100,0,1000);
   hM["WMt"] = new TH1F("Mt"+hname,"M_{T}(W) [GeV/c^{2}]", 50, 0, 300);
   // MC
   hMC["PID"] = new TH1F("MC_ID","MC ID",51,-25.5,25.5);
@@ -342,6 +347,8 @@ void ttgamma3::SlaveBegin(TTree * tree)
   allhistos.insert( hM.begin(), hM.end() );
   allhistos.insert( hMC.begin(), hMC.end() );
 
+
+
   for ( map<string,TH1* >::const_iterator imap = allhistos.begin(); imap!=allhistos.end(); ++imap )
     {
       TH1 *temp = imap->second;
@@ -351,6 +358,33 @@ void ttgamma3::SlaveBegin(TTree * tree)
   
    h1test = new TH1F("h1test","Electron p_{T}",100,10.,400);
    h1test->SetDirectory(fFile);   
+   
+   h3test = new TH1F("DeltaR", "DeltaR", 40,0,5);
+   h3test->SetDirectory(fFile);
+
+   h6test = new TH1F("PT_MC", "PT MC", 100,0,400);
+   h6test->SetDirectory(fFile);
+
+   h7test= new TH1F("PT_RECO", "PT RECO", 100,0,400);
+   h7test->SetDirectory(fFile);
+
+   h4test = new TH1F( "delta_R_bbar", "del r", 40,0,7);
+   h4test->SetDirectory(fFile);
+
+   h5test = new TH1F("delta_R_bquark", "del r",40,0,7);
+   h5test->SetDirectory(fFile);
+   
+   h8test = new TH1F("Mother_Particle_ID","MC_PH_mom_ID", 5, -24,24);
+   h8test->SetDirectory(fFile);
+
+   //defining a 2D histogram
+
+   h2test = new TH2F("real_photons","SCFR vs Charged Hadron Isolation",50,0,0.03,50,-0.5,25);
+   h2test->SetDirectory(fFile);
+   
+
+   h9test = new TH2F("fake_photons","SCFR vs Charged Hadron ISolation",50,0,0.03,50,-0.5,25);
+   h9test->SetDirectory(fFile);
 
    // cut flow
    if (fChannel==1)
@@ -456,7 +490,6 @@ Bool_t ttgamma3::Process(Long64_t entry)
       for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
         {
           hMC["PID"]->Fill( fReader->mcPID->at(imc) );
-        
           ///////////////////////////////////
           // check photon mom in ttg sample
           ///////////////////////////////////
@@ -470,22 +503,89 @@ Bool_t ttgamma3::Process(Long64_t entry)
             }
         }
     }
+  //////////////////////////////////////////////////////////
+  /// Checking ttgWhizard sample for fake and real photons
+  //////////////////////////////////////////////////////////
+   TLorentzVector temp4_b;
+   TLorentzVector temp4_c;
+
+  if ( fSample == "ttgWhizard" )
+   {
+      cout << "Checking ttgWhizard" <<endl;
+      
+      int mcNphotons = 0;
+      int mcNphotons_overlap = 0;
+
+      int n_pho = 0;
+      TLorentzVector p4bQuark;
+      TLorentzVector p4bbarQuark;
+
+      vector < int > momPhotonIDVec;
+      vector <TLorentzVector> p4MCphotons;
+      TLorentzVector temp4_a;
+      TLorentzVector temp4;
+
+      for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
+        {
+          // photons
+          if ( fReader->mcPID->at(imc) == 22 && fReader->mcStatus->at(imc) == 1)
+            {
+              temp4.SetPtEtaPhiE( fReader->mcPt->at(imc), fReader->mcEta->at(imc), fReader->mcPhi->at(imc), fReader->mcE->at(imc) );
+              // if (fabs(fReader->mcMomPID->at(imc))==5 || fabs(fReader->mcMomPID->at(imc))==6 || fabs(fReader->mcMomPID->at(imc))==24 )
+              // (fabs(fReader->mcParentage->at(imc))==5 || fabs(fReader->mcParentage->at(imc))==6 || fabs(fReader->mcParentage->at(imc))==24 )
+              if (fReader->mcParentage->at(imc)==2 || (fReader->mcParentage->at(imc)==10 && fabs(fReader->mcMomPID->at(imc))==24) )
+
+                 {
+                   p4MCphotons.push_back(temp4);
+                   momPhotonIDVec.push_back( fReader->mcMomPID->at(imc) );
+                   mcNphotons++;
+
+                   //h8test->Fill(fReader->mcMomPID->at(imc));
+                 }
+            }
+             if ( fabs(fReader->mcPID->at(imc)) == 5 && fabs(fReader->mcMomPID->at(imc)) == 6 ) // b from tops
+            {
+              if (fReader->mcPID->at(imc) == 5) p4bQuark.SetPtEtaPhiE( fReader->mcPt->at(imc), fReader->mcEta->at(imc), fReader->mcPhi->at(imc), fReader->mcE->at(imc) );
+              if (fReader->mcPID->at(imc) ==-5) p4bbarQuark.SetPtEtaPhiE( fReader->mcPt->at(imc), fReader->mcEta->at(imc), fReader->mcPhi->at(imc), fReader->mcE->at(imc) );
+            }
+
+        }
+      
+      for (int ij = 0 ; ij < p4MCphotons.size() ; ++ij )
+          {
+            TLorentzVector temp4_a = p4MCphotons[ij];
+            //h6test->Fill(temp4_a.Pt());
+            if ( temp4_a.E() > 20 && temp4_a.DeltaR( p4bQuark ) > 0.1 && temp4_a.DeltaR( p4bbarQuark ) > 0.1 )
+                {
+                 temp4_b.SetPtEtaPhiE( temp4_a.Pt(), temp4_a.Eta(), temp4_a.Phi(), temp4_a.E() );
+                 h4test->Fill(temp4_a.DeltaR(p4bQuark));
+                 h5test->Fill(temp4_a.DeltaR(p4bbarQuark));
+                 h6test->Fill(temp4_b.Pt());
+           
+                 h8test->Fill( momPhotonIDVec[ij] );
+                }
+           
+          }
+ }
 
   ////////////////////////////////////////////////
   // Remove overlapping photon events in ttjets MG
   ////////////////////////////////////////////////
   if ( fSample == "ttjets_1l" || fSample == "ttjets_2l" || fSample == "ttjets_0l" || fSample == "ttjets_0l_g" || fSample == "ttjets_1l_g" || fSample == "ttjets_2l_g" )
     {
-      if (fVerbose) cout << "Checking if event has overlapping photons" << endl;
+       cout << "Checking if event has overlapping photons" << endl;
  
       int mcNphotons = 0;
       int mcNphotons_overlap = 0;
       
       TLorentzVector p4bQuark;
       TLorentzVector p4bbarQuark;
-      vector < TLorentzVector > p4MCPhotonsVec;
+      vector <TLorentzVector>  p4MCPhotonsVec;
       vector < int > momPhotonIDVec;
       TLorentzVector tmpp4;
+      TLorentzVector tempp4_a;
+      TLorentzVector tempp4_b;
+      TLorentzVector temp4;
 
       for(int imc = 0; imc < fReader->nMC; ++imc)             //Loop over gen particles
         {
@@ -512,6 +612,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
             }
         }
       
+ 
       int ipho = 0;
       for ( vector<TLorentzVector>::const_iterator ivec= p4MCPhotonsVec.begin(); ivec != p4MCPhotonsVec.end(); ++ivec )
         {
@@ -522,6 +623,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
               mcNphotons_overlap++;
               hphotons["mc_momIDoverlap"]->Fill( momPhotonIDVec[ipho] );
             }
+           
           //else 
           //  {
           //    hphotons["mc_momIDpass"]->Fill( momPhotonIDVec[ipho] );
@@ -530,7 +632,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
         }
       p4MCPhotonsVec.clear();
 
-      if ( mcNphotons_overlap > 0 && fKeepOnlyPhotons == false )
+      if ( mcNphotons_overlap > 0 && fKeepOnlyPhotons == false && fdoSkim == false)
         {
           if (fVerbose) cout << "overlap photon, skip event" << endl;
           fN_tt_filter++;
@@ -724,13 +826,15 @@ Bool_t ttgamma3::Process(Long64_t entry)
       if ( Ngood_Mu == 1 )
         {
           // Get SF for muon
-          MuonScaleFactor muSF = MuonScaleFactor();
-          muSF.Init();
-          float muon_sf = 1.0;
-          muon_sf = muSF.GetSF( p4lepton.Eta() );
-          if (fVerbose) cout << "muon SF = " << muon_sf << endl;
-          EvtWeight *= muon_sf;
-
+          if ( fdoMuSF )
+            {
+              MuonScaleFactor muSF = MuonScaleFactor();
+              muSF.Init();
+              float muon_sf = 1.0;
+              muon_sf = muSF.GetSF( p4lepton.Eta() );
+              if (fVerbose) cout << "muon SF = " << muon_sf << endl;
+              EvtWeight *= muon_sf;
+            }
           cutmap["OneIsoMuon"] += EvtWeight;
         }
       else 
@@ -945,7 +1049,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
   // b-tagging selection
   ///////////////////////
   if (fVerbose) cout << "b-tagging weight ( 0 = no btags ) = " << (1. - the_btag_weight) << endl;
-  if ( fdoBTAG && (1. - the_btag_weight) > 0 ) EvtWeight = EvtWeight*(1. - the_btag_weight);
+  if ( fdoBTAGSF && (1. - the_btag_weight) > 0 ) EvtWeight = EvtWeight*(1. - the_btag_weight);
 
   if ( Nbtags >= 1 )
     {
@@ -975,7 +1079,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
   ///////////////////////
   bool passPreSel = false;
   //if ( pass1stJet && pass2ndJet && pass3rdJet && pass4thJet &&
-  if ( Ngood_Jets > 3 &&
+  if ( Ngood_Jets > 2 &&
        Nbtags >= 1 )
     passPreSel = true;
 
@@ -1029,7 +1133,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
   hjets["N_pre"]->Fill( Ngood_Jets, EvtWeight );
   hjets["pt1_pre"]->Fill( p4jets[0].Pt(), EvtWeight );
   hMET["MET_pre"]->Fill( fReader->pfMET, EvtWeight );
-  hM["M3"]->Fill( M3, EvtWeight);
+  hM["M3_pre"]->Fill( M3, EvtWeight);
 
   if (fVerbose) cout << " pre-selection done." << endl;
 
@@ -1042,7 +1146,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
   // https://twiki.cern.ch/twiki/bin/viewauth/CMS/CutBasedPhotonID2012
   // photon ID is not going to be changed every time this code runs
   // barrel/endcap, Loose/Medium/Tight
-  //int    photonID_IsConv[2][3]                = { {0, 0, 0} , {0, 0, 0} };
+  int    photonID_IsConv[2][3]                = { {0, 0, 0} , {0, 0, 0} };
   double photonID_HoverE[2][3]                = { {0.05, 0.05, 0.05} , {0.05, 0.05, 0.05} };
   double photonID_SigmaIEtaIEta[2][3]         = { {0.012, 0.011, 0.011} , {0.034, 0.033, 0.031} };
   double photonID_RhoCorrR03ChHadIso[2][3]    = { {2.6, 1.5, 0.7} , {2.3, 1.2, 0.5} };
@@ -1052,105 +1156,138 @@ Bool_t ttgamma3::Process(Long64_t entry)
   double photonID_RhoCorrR03PhoIso_1[2][3]    = { {0.005, 0.005, 0.005} , {0.005, 0.005, 0.005} };
   // we use loose selection
   int photon_ID = 0;
-
   for(int ip = 0; ip < fReader->nPho; ++ip)	 //Loop over the photons in a event
     {
       Ngamma[0] += EvtWeight;
 
       TLorentzVector tmpp4;
-      tmpp4.SetPtEtaPhiE( fReader->phoEt->at(ip),
-                          fReader->phoEta->at(ip),
-                          fReader->phoPhi->at(ip),
-                          fReader->phoE->at(ip) );
+      tmpp4.SetPtEtaPhiE( fReader->phoEt->at(ip), fReader->phoEta->at(ip),fReader->phoPhi->at(ip),fReader->phoE->at(ip) );
 
+      double eta = fReader->phoEta->at(ip);
+      double et = fReader->phoEt->at(ip);     
+      float chHadIso = fReader->phoPFChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
+      float SCFRChIso = fReader->phoSCRChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
+      float ntHadIso = fReader->phoPFNeuIso->at(ip) - fReader->rho2012 * phoEffArea03NeuHad( tmpp4.Eta() );
+      float rand_chHadIso = fReader->phoRandConeChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
+      float pfIso = fReader->phoPFPhoIso->at(ip)  - fReader->rho2012 * phoEffArea03Pho( tmpp4.Eta() );
+      float SCFRPhoIso = fReader->phoSCRPhoIso04->at(ip) - fReader->rho2012* phoEffArea03Pho( tmpp4.Eta());
+      float rand_conePhoIso = fReader->phoRandConePhoIso->at(ip) -fReader->rho2012*phoEffArea03Pho(tmpp4.Eta());
+
+      
       int region = 0; //barrel
-      if( fabs( tmpp4.Eta() )>1.5) region = 1; //endcap
-
-      hphotons["cut0_et"]->Fill( tmpp4.Et(), EvtWeight );
+      hphotons["cut0_et"]->Fill( tmpp4.Et(),EvtWeight );
       hphotons["cut0_eta"]->Fill( tmpp4.Eta(), EvtWeight );
       hphotons["cut0_phi"]->Fill( tmpp4.Phi(), EvtWeight );
 
       if (fVerbose) cout << "photon: et= "<< fReader->phoEt->at(ip) << " eta= "<< fReader->phoEta->at(ip) << endl;
-
-      if( tmpp4.Et() > 25 &&
-          fabs( tmpp4.Eta() ) < 1.4442 )
-      {
-        Ngamma[1]+= EvtWeight;
-
-        bool passelectronveto = (fReader->phoEleVeto->at(ip) == 0);        
-        hphotons["cut1_eVeto"]->Fill( int(passelectronveto), EvtWeight );
-        if (fVerbose) cout << "photon pass e veto: " << passelectronveto << endl;
-
-        if ( passelectronveto )
+      // Kinematic cuts
+      if( fabs( tmpp4.Eta() )>1.5) region = 1; //endcap
           {
-            Ngamma[2]+= EvtWeight;
-            
-            // check conversion tracks
-            hphotons["cut1_hasConvTrk"]->Fill( int(fReader->phoIsConv->at(ip)) , EvtWeight );
+      	   if( tmpp4.Et() > 25 && fabs( tmpp4.Eta() ) < 1.4442 )
+             { 
+               Ngamma[1]+= EvtWeight;
+               //electron veto
+	       bool passelectronveto = (fReader->phoEleVeto->at(ip) == 0);
+               hphotons["cut1_eVeto"]->Fill( int(passelectronveto), EvtWeight );
+               if (fVerbose) cout << "photon pass e veto: " << passelectronveto << endl;
 
-            float HoverE = fReader->phoHoverE->at(ip);
-            hphotons["cut2_HoverE"]->Fill( HoverE, EvtWeight );
-            if (fVerbose) cout << "photon H/E= " << HoverE << endl;
+               if ( passelectronveto )
+          	{
+            	  Ngamma[2]+= EvtWeight;
+                  //phoIConv
+                  if (fReader->phoIsConv->at(ip) == photonID_IsConv[region][photon_ID])
+                     {
+		       hphotons["cut1_hasConvTrk"]->Fill( int(fReader->phoIsConv->at(ip)) , EvtWeight);
 
-            if ( HoverE < photonID_HoverE[region][photon_ID] )
-              {
-                Ngamma[3]+= EvtWeight;
-
-                float ietaieta = fReader->phoSigmaIEtaIEta->at(ip);
-                hphotons["cut3_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
-                if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
-
-                float chHadIso = fReader->phoPFChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
-                float SCFRChIso = fReader->phoSCRChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
-                float ntHadIso = fReader->phoPFNeuIso->at(ip) - fReader->rho2012 * phoEffArea03NeuHad( tmpp4.Eta() );
-                float rand_chHadIso = fReader->phoRandConeChIso->at(ip) - fReader->rho2012 * phoEffArea03ChHad( tmpp4.Eta() );
-                float pfIso = fReader->phoPFPhoIso->at(ip)  - fReader->rho2012 * phoEffArea03Pho( tmpp4.Eta() );
-
-                // templates
-                if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
-                  {
-                    hphotons["temp_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
-                    hphotons["temp_SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
-                    //hphotons["temp2D_sigmaVsSCFRCh"]->Fill( (double)ietaieta, (double)SCFRChIso, EvtWeight);
-                  }
-
+                       float HoverE = fReader->phoHoverE->at(ip);
+		       hphotons["cut2_HoverE"]->Fill( HoverE, EvtWeight );
+                       if (fVerbose) cout << "photon H/E= " << HoverE << endl;
+                       // H over E
+            	       if ( HoverE < photonID_HoverE[region][photon_ID] )
+                         {
+                          Ngamma[3]+= EvtWeight;
+                          float ietaieta = fReader->phoSigmaIEtaIEta->at(ip);
+                          hphotons["cut3_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
+		          if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
+                          // neutral HAdron ISo
+	                  if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
+                  	    {
+                    	      hphotons["temp_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
+                    	      hphotons["temp_SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
+                              // pf ISo cut
+                              if ( pfIso < ( photonID_RhoCorrR03PhoIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03PhoIso_1[region][photon_ID] ) )
+                               {
+                                if ( Ngood_gamma == 0 )
+                                 {
+                                   p4photon = tmpp4;
+                                   hphotons["sigmaietaieta"]->Fill( ietaieta, EvtWeight );
+                                   hphotons["chHadIso"]->Fill( chHadIso, EvtWeight );
+                                   hphotons["SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
+                                   hphotons["RandIso"]->Fill( rand_chHadIso, EvtWeight );
+                                   h7test->Fill(p4photon.Pt());
+                                   h3test->Fill(temp4_b.DeltaR(p4photon));
+                                   if (temp4_b.DeltaR(p4photon) < 0.2)
+                                      {
+                                        h2test->Fill(ietaieta,SCFRChIso);
+                                        h2test->GetXaxis()->SetTitle("Sigmaietaieta");
+                                        h2test->GetYaxis()->SetTitle("SCFRChIso");
+                                        h2test->SetLineColor(870);
+                                        h2test->SetOption("box");
+                                      }
+                                  else
+                                      {
+                                       h9test->Fill(ietaieta,SCFRChIso);
+                                       h9test->GetXaxis()->SetTitle("Sigmaietaieta");
+                                       h9test->GetYaxis()->SetTitle("SCFRChIso");
+                                       h9test->SetLineColor(870);
+                                       h9test->SetOption("box");
+                                     }
+                                }
+                            }//pfIso
+                         }//ntHad
+ 
+                // sigmaieta ieta
                 if ( ietaieta < photonID_SigmaIEtaIEta[region][photon_ID] )
                   {
                     Ngamma[4]+= EvtWeight;
 
                     hphotons["cut4_chHadIso"]->Fill( chHadIso, EvtWeight );
+                    // SCFR pf Iso
+                    if (SCFRPhoIso < photonID_RhoCorrR03ChHadIso[region][photon_ID] )
 
-
-                    //if ( chHadIso < (photonID_RhoCorrR03ChHadIso[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03ChHadIso[region][photon_ID]) )
-                    //{
-                    //  Ngamma[5]+=EvtWeight;
-                    hphotons["cut5_ntHadIso"]->Fill( ntHadIso, EvtWeight );
-
-                    if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
-                      {
-                        Ngamma[6]+= EvtWeight;
-                        hphotons["cut6_pfIso"]->Fill( chHadIso, EvtWeight );
-                        if ( pfIso < ( photonID_RhoCorrR03PhoIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03PhoIso_1[region][photon_ID] ) ) 
-                          {
-                            Ngamma[7]+= EvtWeight;
-                            if ( Ngood_gamma == 0 )
-                              {
-                                p4photon = tmpp4;
-                                hphotons["sigmaietaieta"]->Fill( ietaieta, EvtWeight );
-                                hphotons["chHadIso"]->Fill( chHadIso, EvtWeight );
-                                hphotons["SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
-                                hphotons["RandIso"]->Fill( rand_chHadIso, EvtWeight );
-                              }
-                            Ngood_gamma++;
-                          }
-                      }
+                     {
+                       hphotons["cut5_ntHadIso"]->Fill( ntHadIso, EvtWeight );
                       
-                  }
-              } // HoverE
-          } //eVeto
-      } //fidutial
+                       //neutral Had
+                       if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
+                         {
+                           Ngamma[6]+= EvtWeight;
+                           hphotons["cut6_pfIso"]->Fill( chHadIso, EvtWeight );
+                           if ( pfIso < ( photonID_RhoCorrR03PhoIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03PhoIso_1[region][photon_ID] ) ) 
+                             {
+                               Ngamma[7]+= EvtWeight;
+                             }
+                           // removing photons close to jets with Pt > 20 
+                           for (int ij= 0; ij < fReader->nJet; ++ij)
+                             {
+                               TLorentzVector tmpp4;
+                               tmpp4.SetPtEtaPhiE( fReader->jetPt->at(ij), fReader->jetEta->at(ij), fReader->jetPhi->at(ij), fReader->jetEn->at(ij) );
+                               if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7)
 
-    } // end photons
+                               {
+                                   Ngood_gamma++;
+                               }
+                             }
+                        }
+
+                      }
+                  }
+            } // HoverE
+          }//PhIsConv
+        } //eVeto
+      } //fidutial
+    }//tmpp4.Et cuts
+  } // end photons
 
   for ( int ibin=0; ibin < 8; ibin++)
     {
@@ -1168,31 +1305,37 @@ Bool_t ttgamma3::Process(Long64_t entry)
         }
     }
   hphotons["Ngood"]->Fill( Ngood_gamma );
+  if ( Ngood_gamma > 0 )
+     {
+       
+		
+      	       cutmap["OnePhoton"] += EvtWeight;
 
-  if ( Ngood_gamma >0 )
-    {
-
-      cutmap["OnePhoton"] += EvtWeight;
-
-      if (fChannel==1)
-        {
-          hmuons["pt"]->Fill( p4lepton.Pt(), EvtWeight );
-          hmuons["eta"]->Fill( p4lepton.Eta(), EvtWeight );
-          hmuons["phi"]->Fill( p4lepton.Phi(), EvtWeight );
-          hmuons["relisocorr"]->Fill( relIsocorr_Mu, EvtWeight );
-        }
-      else
-        {
-          helectrons["pt"]->Fill( p4lepton.Pt(), EvtWeight );
-          helectrons["eta"]->Fill( p4lepton.Eta(), EvtWeight );
-          helectrons["phi"]->Fill( p4lepton.Phi(), EvtWeight );
-          helectrons["relisocorr"]->Fill( relIsocorr_Ele, EvtWeight );
-        }
+               if (fChannel==1)
+                 {
+                  hmuons["pt"]->Fill( p4lepton.Pt(), EvtWeight );
+                  hmuons["eta"]->Fill( p4lepton.Eta(), EvtWeight );
+                  hmuons["phi"]->Fill( p4lepton.Phi(), EvtWeight );
+                  hmuons["relisocorr"]->Fill( relIsocorr_Mu, EvtWeight );
+          
+                 }
+               else
+                 {
+                  helectrons["pt"]->Fill( p4lepton.Pt(), EvtWeight );
+                  helectrons["eta"]->Fill( p4lepton.Eta(), EvtWeight );
+                  helectrons["phi"]->Fill( p4lepton.Phi(), EvtWeight );
+                  helectrons["relisocorr"]->Fill( relIsocorr_Ele, EvtWeight );
+                 }
       hPVs["N"]->Fill( fReader->nVtx , EvtWeight );
       hjets["N"]->Fill( Ngood_Jets, EvtWeight );
       hjets["pt1"]->Fill( p4jets[0].Pt(), EvtWeight );
       hMET["MET"]->Fill( fReader->pfMET, EvtWeight );
+      hM["M3"]->Fill(M3, EvtWeight );
     }
+
+  // clear vectors
+  p4jets.clear();
+  vec_btags.clear();
 
   if (fVerbose) cout << "analysis done." << endl;
    return kTRUE;
@@ -1229,6 +1372,23 @@ void ttgamma3::SlaveTerminate()
       fFile->cd();
       h1test->Write();
       h1test->SetDirectory(0);
+      h2test->Write();
+      h2test->SetDirectory(0);
+      h3test->Write();
+      h3test->SetDirectory(0);
+      h4test->Write();
+      h4test->SetDirectory(0);
+      h5test->Write();
+      h5test->SetDirectory(0);
+      h6test->Write();
+      h6test->SetDirectory(0);
+      h7test->Write();
+      h7test->SetDirectory(0);
+      h8test->Write();
+      h8test->SetDirectory(0);
+      h9test->Write();
+      h9test->SetDirectory(0);
+
       hcutflow->Write();
       hcutflow->SetDirectory(0);
 
@@ -1267,6 +1427,8 @@ void ttgamma3::SlaveTerminate()
       cleanup = kTRUE;
     }
         
+    Info("SlaveTerminate", "Everything saved. Closing file.");
+
     gDirectory = savedir;
     fFile->Close();
     // Cleanup, if needed
@@ -1283,8 +1445,9 @@ void ttgamma3::SlaveTerminate()
 
     }
 
-  }
-
+}  
+  
+  Info("SlaveTerminate", "done.");
 }
 
 void ttgamma3::Terminate()
@@ -1295,3 +1458,4 @@ void ttgamma3::Terminate()
 
   Info("Terminate","Analyzer done.");
 }
+              
