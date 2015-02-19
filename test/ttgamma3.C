@@ -1208,12 +1208,9 @@ Bool_t ttgamma3::Process(Long64_t entry)
                           Ngamma[3]+= EvtWeight;
                           float ietaieta = fReader->phoSigmaIEtaIEta->at(ip);
                           hphotons["cut3_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
-                          //sigma ieta ieta
-                          if ( ietaieta < photonID_SigmaIEtaIEta[region][photon_ID] )
-                          {
-		            if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
-                            // neutral HAdron ISo
-	                    if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
+		          if (fVerbose) cout << "photon: ietaieta = " << ietaieta << endl;
+                          // neutral HAdron ISo
+	                  if ( ntHadIso < (photonID_RhoCorrR03NeuHadIso_0[region][photon_ID] + tmpp4.Et() * photonID_RhoCorrR03NeuHadIso_1[region][photon_ID]) )
                   	    {
                     	      hphotons["temp_sigmaietaieta"]->Fill( ietaieta, EvtWeight );
                     	      hphotons["temp_SCFRChIso"]->Fill( SCFRChIso, EvtWeight );
@@ -1245,10 +1242,11 @@ Bool_t ttgamma3::Process(Long64_t entry)
                                        h9test->SetLineColor(870);
                                        h9test->SetOption("box");
                                      }
+                                    Ngood_gamma++;
                                 }
                             }//pfIso
                          }//ntHad
-                          }//sigmaietaieta
+ 
                 // sigmaieta ieta
                 if ( ietaieta < photonID_SigmaIEtaIEta[region][photon_ID] )
                   {
@@ -1273,12 +1271,13 @@ Bool_t ttgamma3::Process(Long64_t entry)
                            // removing photons close to jets with Pt > 20 
                            for (int ij= 0; ij < fReader->nJet; ++ij)
                              {
+                               Ngood_deltaR_gamma==0;
                                TLorentzVector tmpp4;
                                tmpp4.SetPtEtaPhiE( fReader->jetPt->at(ij), fReader->jetEta->at(ij), fReader->jetPhi->at(ij), fReader->jetEn->at(ij) );
                                if (fReader->jetPt->at(ij) > 20  && 0.1<tmpp4.DeltaR(p4photon) <0.7)
 
                                {
-                                   Ngood_gamma++;
+                                   Ngood_deltaR_gamma++;
                                }
                              }
                         }
@@ -1308,7 +1307,7 @@ Bool_t ttgamma3::Process(Long64_t entry)
         }
     }
   hphotons["Ngood"]->Fill( Ngood_gamma );
-  if ( Ngood_gamma > 0 )
+  if ( Ngood_gamma > 0 && Ngood_deltaR_gamma>0 )
      {
        
 		
